@@ -18,34 +18,67 @@ struct Token{
 
 
 
-std::vector<Token> lex(std::string contents)
+std::vector<Token> tokenize(const std::string& str)
 {
     std::vector<Token> tokens;
-    std::string current_token;
-    for (char c : contents)
+    std::string buf;
+    for (int i = 0; i < str.length(); i++)
     {
-
-        if (c == ' ')
-        {
-            if (current_token == "return")
+       char c = str[i];
+       if (std::isalpha(c))
+       {
+            buf.push_back(c);
+            i++;
+            while (std::isalnum(str[i]))
             {
-                tokens.push_back(Token{TokenType::_return});
+                buf.push_back(str[i]);
+                i++;
             }
-            else if (current_token == ";")
+            i--;
+            if(buf == "return")
             {
-                tokens.push_back(Token{TokenType::semi});
+                tokens.push_back({.type = TokenType::_return});
+                buf.clear();
+                continue;
             }
             else
             {
-                tokens.push_back(Token{TokenType::int_literal, current_token});
+                std::cerr << "Unknown token: " << buf << std::endl;
+                exit(EXIT_FAILURE);
             }
-            current_token = "";
-        }
-        else
-        {
-            current_token += c;
-        }
+              
+       }
+       else if (std::isdigit(c))
+       {
+           buf.push_back(c);
+           i++;
+           while (std::isdigit(str[i]))
+           {
+               buf.push_back(str[i]);
+               i++;
+           }
+           i--;
+           tokens.push_back({.type = TokenType::int_literal, .value = buf});
+           buf.clear();
+       }
+       else if (c == ';')
+       {
+           tokens.push_back({.type = TokenType::semi});
+       }
+       
+       else if (std::isspace(c))
+       {
+           continue;
+       }
+       else
+       {
+           std::cerr << "Unknown token: " << c << std::endl;
+           exit(EXIT_FAILURE);
+       } 
+      
+       
     }
+    
     return tokens;
 }
 
@@ -96,8 +129,14 @@ int main(int argc, char* argv[])
         content_stream << input.rdbuf();
         contents = content_stream.str();
     }
-    std::vector<Token> tokens = lex(contents);
+    std::vector<Token> tokens = tokenize(contents);
     std::cout << token_to_asm(tokens) << std::endl;
+    {
+        std::fstream output("out.asm", std::ios::out);
+        output << token_to_asm(tokens);
+    }
+    system("nasm -fmacho64 out.asm");
+    system("ld -static -o out test.o");
 
     return EXIT_SUCCESS;
 }
